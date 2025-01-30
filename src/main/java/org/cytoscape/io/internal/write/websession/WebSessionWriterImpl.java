@@ -6,17 +6,19 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.cytoscape.application.CyApplicationConfiguration;
+import org.cytoscape.io.internal.write.json.EncodingUtil;
 import org.cytoscape.io.internal.write.json.CytoscapeJsNetworkWriterFactory;
 import org.cytoscape.io.internal.write.json.JSONNetworkViewWriter;
 import org.cytoscape.io.write.CyWriter;
@@ -52,6 +54,7 @@ public class WebSessionWriterImpl extends AbstractTask implements CyWriter, WebS
 	private final VisualMappingManager vmm;
 	private final CytoscapeJsNetworkWriterFactory cytoscapejsWriterFactory;
 	protected final CyNetworkViewManager viewManager;
+	private final Charset encodingCharSet;
 
 	protected final String exportType;
 	private final Path absResourcePath;
@@ -72,6 +75,8 @@ public class WebSessionWriterImpl extends AbstractTask implements CyWriter, WebS
 		final File resourceDir = new File(WEB_RESOURCE_NAME, exportType);
 		File resourceDirectoryFile = new File(webResourceDirectory.getAbsolutePath(), resourceDir.getPath());
 		this.absResourcePath = Paths.get(resourceDirectoryFile.getAbsolutePath());
+		this.encodingCharSet = EncodingUtil.getEncoder().charset();
+		
 	}
 
 	@Override
@@ -98,7 +103,6 @@ public class WebSessionWriterImpl extends AbstractTask implements CyWriter, WebS
 	public void writeFiles(TaskMonitor tm) throws Exception {
 		// Phase 0: Prepare local temp files. This is necessary because
 		// Jackson library forces to close the stream!
-
 		// Phase 1: Write all network files as Cytoscape.js-style javascript
 		tm.setProgress(0.1);
 		tm.setStatusMessage("Saving networks as Cytoscape.js javascript...");
@@ -134,8 +138,8 @@ public class WebSessionWriterImpl extends AbstractTask implements CyWriter, WebS
 
 		if (cancelled)
 			return;
-
-		tm.setStatusMessage("Done.");
+		
+		tm.setStatusMessage("Done.");		
 		tm.setProgress(1.0);
 	}
 
@@ -206,7 +210,7 @@ public class WebSessionWriterImpl extends AbstractTask implements CyWriter, WebS
 		vizmapWriter.run(tm);
 		
 		FileOutputStream stream = new FileOutputStream(styleFile);
-		stream.write("var styles = ".getBytes());
+		stream.write("var styles = ".getBytes(encodingCharSet));
 		stream.write(bStream.toByteArray());
 		stream.close();
 		
@@ -221,7 +225,7 @@ public class WebSessionWriterImpl extends AbstractTask implements CyWriter, WebS
 
 		final File networkFile = File.createTempFile("networks_", JS_EXT);
 		FileOutputStream stream = new FileOutputStream(networkFile);
-		stream.write("var networks = {".getBytes());
+		stream.write("var networks = {".getBytes(encodingCharSet));
 		int len = 0;
 		for (final CyNetworkView view : netViews) {
 			if (cancelled){
@@ -235,7 +239,7 @@ public class WebSessionWriterImpl extends AbstractTask implements CyWriter, WebS
 			ByteArrayOutputStream bStream = new ByteArrayOutputStream();
 			JSONNetworkViewWriter writer = (JSONNetworkViewWriter) cytoscapejsWriterFactory.createWriter(bStream, view);
 			writer.run(taskMonitor);
-			stream.write(String.format("\"%s\": %s", networkName, bStream.toString()).getBytes());
+			stream.write(String.format("\"%s\": %s", networkName, bStream.toString()).getBytes(encodingCharSet));
 			len++;
 			if (len < netViews.size()){
 				stream.write(',');
