@@ -8,7 +8,7 @@ import java.nio.charset.CharsetEncoder;
  * Provide UTF-8 encoder/decoder if available.
  *
  */
-final class EncodingUtil {
+public final class EncodingUtil {
 
 	private static final String CHARSET = "UTF-8";
 
